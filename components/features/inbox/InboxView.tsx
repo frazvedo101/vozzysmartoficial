@@ -178,7 +178,7 @@ export function InboxView({
     <TooltipProvider delayDuration={300}>
       {/* Full height container - uses parent height from PageLayoutScope */}
       <div className="h-full bg-[var(--ds-bg-base)]">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanelGroup orientation="horizontal" className="h-full">
           {/* Conversation list sidebar - subtle shadow instead of border */}
           <ResizablePanel
             defaultSize={28}

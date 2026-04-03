@@ -1021,6 +1021,52 @@ export const contactDb = {
         return ids.length
     },
 
+    bulkUpdateTags: async (
+        ids: string[],
+        tagsToAdd: string[],
+        tagsToRemove: string[]
+    ): Promise<number> => {
+        if (ids.length === 0) return 0
+
+        const { data, error } = await supabase
+            .from('contacts')
+            .select('id, tags')
+            .in('id', ids)
+
+        if (error) throw error
+
+        const now = new Date().toISOString()
+        const rows = (data || []).map((row: any) => {
+            const existing: string[] = Array.isArray(row.tags) ? row.tags : []
+            const merged = Array.from(new Set([...existing, ...tagsToAdd]))
+                .filter((t) => !tagsToRemove.includes(t))
+            return { id: row.id, tags: merged, updated_at: now }
+        })
+
+        if (rows.length === 0) return 0
+
+        const { error: upsertError } = await supabase
+            .from('contacts')
+            .upsert(rows as any, { onConflict: 'id' })
+
+        if (upsertError) throw upsertError
+
+        return rows.length
+    },
+
+    bulkUpdateStatus: async (ids: string[], status: string): Promise<number> => {
+        if (ids.length === 0) return 0
+
+        const { error, count } = await supabase
+            .from('contacts')
+            .update({ status, updated_at: new Date().toISOString() })
+            .in('id', ids)
+
+        if (error) throw error
+
+        return count ?? ids.length
+    },
+
     import: async (contacts: Omit<Contact, 'id' | 'lastActive'>[]): Promise<{ inserted: number; updated: number }> => {
         if (contacts.length === 0) return { inserted: 0, updated: 0 }
 

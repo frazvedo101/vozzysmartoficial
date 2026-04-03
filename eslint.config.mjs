@@ -15,6 +15,7 @@ export default [
       '.eslintrc.cjs',
       '.eslintignore',
       '**/*.backup.*',
+      'lib/builder/next-boilerplate/**',
     ],
     linterOptions: {
       reportUnusedDisableDirectives: 'off',

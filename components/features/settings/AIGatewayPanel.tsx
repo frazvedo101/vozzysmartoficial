@@ -1,10 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Route, Info, Loader2, Check, ChevronDown, Search } from 'lucide-react';
+import { Route, Info, Loader2, Check, ChevronDown, Search, Key, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { DEFAULT_AI_GATEWAY, type AiGatewayConfig } from '@/lib/ai/ai-center-defaults';
 import type { GatewayModel } from '@/app/api/ai/gateway-models/route';
+
+type ProviderKeyStatus = {
+  isConfigured: boolean;
+  source: 'database' | 'env' | 'none';
+  tokenPreview?: string | null;
+};
 
 /**
  * AIGatewayPanel - Configuração do Vercel AI Gateway
@@ -72,6 +78,7 @@ export function AIGatewayPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<AiGatewayConfig>(DEFAULT_AI_GATEWAY);
+  const [providerStatuses, setProviderStatuses] = useState<Record<string, ProviderKeyStatus>>({});
   const [showPrimaryConfig, setShowPrimaryConfig] = useState(false);
   const [showFallbackConfig, setShowFallbackConfig] = useState(false);
   const [models, setModels] = useState<GatewayModel[]>([]);
@@ -86,6 +93,7 @@ export function AIGatewayPanel() {
       const res = await fetch('/api/settings/ai');
       const data = await res.json();
       if (data.gateway) setConfig(data.gateway);
+      if (data.providers) setProviderStatuses(data.providers);
     } catch (error) {
       console.error('Error fetching AI Gateway config:', error);
     } finally {
@@ -357,10 +365,13 @@ export function AIGatewayPanel() {
         {/* ── BYOK Toggle ── */}
         <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium text-[var(--ds-text-primary)]">Usar suas chaves (BYOK)</div>
-              <div className="text-xs text-[var(--ds-text-muted)] mt-0.5">
-                Usa as chaves dos providers já configuradas no SmartZap
+            <div className="flex items-center gap-2">
+              <Key size={15} className="shrink-0 text-[var(--ds-text-muted)]" />
+              <div>
+                <div className="text-sm font-medium text-[var(--ds-text-primary)]">Usar suas chaves de API (BYOK)</div>
+                <div className="text-xs text-[var(--ds-text-muted)] mt-0.5">
+                  Passa suas chaves diretamente ao Gateway — sem markup de custo
+                </div>
               </div>
             </div>
             <button
@@ -370,7 +381,7 @@ export function AIGatewayPanel() {
               aria-label="Usar BYOK"
               disabled={saving}
               onClick={() => handleSaveConfig({ useBYOK: !config.useBYOK })}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full border transition ${
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition ${
                 config.useBYOK
                   ? 'border-emerald-500/40 bg-emerald-500/20'
                   : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)]'
@@ -383,6 +394,44 @@ export function AIGatewayPanel() {
               />
             </button>
           </div>
+
+          {/* Status das chaves quando BYOK está ativo */}
+          {config.useBYOK && (
+            <div className="mt-3 border-t border-[var(--ds-border-subtle)] pt-3 space-y-2">
+              {[
+                { id: 'google', name: 'Google Gemini', dotColor: 'bg-blue-400' },
+                { id: 'openai', name: 'OpenAI', dotColor: 'bg-emerald-400' },
+                { id: 'anthropic', name: 'Anthropic Claude', dotColor: 'bg-amber-400' },
+              ].map(({ id, name, dotColor }) => {
+                const status = providerStatuses[id];
+                const configured = status?.isConfigured ?? false;
+                return (
+                  <div key={id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`size-1.5 rounded-full ${dotColor}`} />
+                      <span className="text-xs text-[var(--ds-text-secondary)]">{name}</span>
+                    </div>
+                    {configured ? (
+                      <div className="flex items-center gap-1 text-emerald-400">
+                        <Check size={11} />
+                        <span className="text-[11px]">
+                          {status.tokenPreview ? `···${status.tokenPreview}` : 'Configurada'}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-[var(--ds-text-muted)]">
+                        <AlertCircle size={11} />
+                        <span className="text-[11px]">Não configurada</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <p className="pt-1 text-[11px] text-[var(--ds-text-muted)]">
+                Adicione as chaves na seção <span className="text-[var(--ds-text-secondary)]">Modelo Principal</span> abaixo ↓
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ── Fallback Models ── */}

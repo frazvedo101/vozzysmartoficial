@@ -1,8 +1,9 @@
 /**
  * Serviço de IA unificado — 100% AI Gateway.
  *
- * Usa o Vercel AI Gateway para todo roteamento de modelos, com fallbacks automáticos
- * e BYOK (Bring Your Own Key). Autenticação via VERCEL_OIDC_TOKEN (automático).
+ * Usa o Vercel AI Gateway para todo roteamento de modelos, com fallbacks automáticos.
+ * Autenticação via VERCEL_OIDC_TOKEN (automático). Configure BYOK no dashboard da Vercel.
+ * Lança erro se `gateway.enabled = false` (IA desativada pelo operador).
  *
  * Implementado sobre o Vercel AI SDK v6 com `gateway()` nativo.
  *
@@ -142,6 +143,9 @@ function handleGatewayError(error: unknown, modelId: string): never {
  */
 export async function generateText(options: GenerateTextOptions): Promise<GenerateTextResult> {
     const gatewayConfig = await getAiGatewayConfig();
+    if (!gatewayConfig.enabled) {
+        throw new Error('IA desativada. Ative o AI Gateway nas configurações do SmartZap.')
+    }
     const modelId = options.model || gatewayConfig.primaryModel;
     assertValidGatewayModelId(modelId);
     console.log(`[AI Service] Generating with ${modelId} (via Gateway)`);
@@ -170,6 +174,9 @@ export async function generateText(options: GenerateTextOptions): Promise<Genera
  */
 export async function streamText(options: StreamTextOptions): Promise<GenerateTextResult> {
     const gatewayConfig = await getAiGatewayConfig();
+    if (!gatewayConfig.enabled) {
+        throw new Error('IA desativada. Ative o AI Gateway nas configurações do SmartZap.')
+    }
     const modelId = options.model || gatewayConfig.primaryModel;
     assertValidGatewayModelId(modelId);
     console.log(`[AI Service] Streaming with ${modelId} (via Gateway)`);

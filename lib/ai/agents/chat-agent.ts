@@ -18,6 +18,7 @@
 import { z } from 'zod'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { DEFAULT_MODEL_ID, normalizeToGatewayModelId } from '@/lib/ai/model'
+import { getAiGatewayConfig } from '@/lib/ai/ai-center-config'
 import type { AIAgent, InboxConversation, InboxMessage } from '@/types'
 
 // NOTE: AI dependencies are imported DYNAMICALLY inside processChatAgent
@@ -346,6 +347,12 @@ export async function processChatAgent(
     // Falha no Mem0 não deve derrubar o agente — continua sem memória
     console.warn(`[chat-agent] Mem0 unavailable (degradação graceful):`, mem0Error instanceof Error ? mem0Error.message : mem0Error)
     mem0Enabled = false
+  }
+
+  // Verificar se o AI Gateway está habilitado
+  const gatewayConfig = await getAiGatewayConfig()
+  if (!gatewayConfig.enabled) {
+    return 'Desculpe, a IA está temporariamente desativada.'
   }
 
   // Get model configuration - routes through AI Gateway via OIDC

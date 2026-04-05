@@ -360,7 +360,11 @@ export function AIGatewayPanel() {
             <p className="text-[11px] text-[var(--ds-text-secondary)]">
               Para usar suas próprias chaves de API (BYOK), adicione-as no{' '}
               <a
-                href={`https://vercel.com/${process.env.NEXT_PUBLIC_VERCEL_TEAM ?? 'dashboard'}/${process.env.NEXT_PUBLIC_VERCEL_PROJECT ?? 'project'}/ai-gateway/byok`}
+                href={
+                  process.env.NEXT_PUBLIC_VERCEL_TEAM && process.env.NEXT_PUBLIC_VERCEL_PROJECT
+                    ? `https://vercel.com/${process.env.NEXT_PUBLIC_VERCEL_TEAM}/${process.env.NEXT_PUBLIC_VERCEL_PROJECT}/ai-gateway/byok`
+                    : 'https://vercel.com/dashboard'
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-emerald-400 underline hover:text-emerald-300"

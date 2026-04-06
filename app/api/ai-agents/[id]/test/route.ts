@@ -167,8 +167,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // Generate response
     const startTime = Date.now()
 
-    // Capture structured response and sources from tool execution
-    let structuredResponse: TestResponse | undefined
+    // Fontes RAG capturadas pelo execute do searchKnowledgeBase tool
     let ragSources: Array<{ title: string; content: string }> = []
     let searchPerformed = false
 
@@ -294,7 +293,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       console.error('[ai-agents/test] Resposta do agente inválida:', parsedResponse.error)
       throw new Error('No structured response generated from AI')
     }
-    structuredResponse = parsedResponse.data as TestResponse
+    let structuredResponse: TestResponse = parsedResponse.data as TestResponse
     // Adicionar fontes do RAG se disponíveis (sempre sobrescreve model sources)
     if (ragSources.length > 0) {
       structuredResponse = { ...structuredResponse, sources: ragSources }

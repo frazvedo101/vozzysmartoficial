@@ -15,10 +15,13 @@ const querySchema = z.object({
 })
 
 const postSchema = z.object({
-  content: z.string().min(1).max(4096),
-  message_type: z.enum(['text', 'template']).default('text'),
+  content: z.string().min(0).max(4096).default(''),
+  message_type: z.enum(['text', 'template', 'image', 'audio', 'video', 'document']).default('text'),
   template_name: z.string().optional(),
   template_params: z.record(z.string(), z.array(z.string())).optional(),
+  media_url: z.string().url().optional(),
+  caption: z.string().max(1024).optional(),
+  filename: z.string().max(255).optional(),
 })
 
 interface RouteParams {
@@ -77,7 +80,7 @@ export async function POST(
       )
     }
 
-    const { content, message_type, template_name, template_params } = parsed.data
+    const { content, message_type, template_name, template_params, media_url, caption, filename } = parsed.data
 
     // Validate template requirements
     if (message_type === 'template' && !template_name) {
@@ -87,13 +90,22 @@ export async function POST(
       )
     }
 
-    const message = await sendMessage(
-      id,
-      content,
-      message_type,
-      template_name,
-      template_params
-    )
+    // Validate media requirements
+    if (['image', 'audio', 'video', 'document'].includes(message_type) && !media_url) {
+      return NextResponse.json(
+        { error: 'media_url é obrigatório para mensagens de mídia' },
+        { status: 400 }
+      )
+    }
+
+    const message = await sendMessage(id, content, {
+      messageType: message_type,
+      templateName: template_name,
+      templateParams: template_params,
+      mediaUrl: media_url,
+      caption,
+      filename,
+    })
 
     return NextResponse.json(message, { status: 201 })
   } catch (error) {

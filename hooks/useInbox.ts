@@ -13,6 +13,7 @@ import { useQuickReplies } from './useQuickReplies'
 import { useInboxSettings, getHumanModeTimeoutMs } from './useInboxSettings'
 import { aiAgentService, type UpdateAIAgentParams } from '@/services/aiAgentService'
 import type { ConversationStatus, ConversationMode, ConversationPriority, AIAgent, InboxConversation, InboxLabel, InboxQuickReply } from '@/types'
+import type { MediaAttachment } from '@/components/features/inbox/MessageInput'
 
 export interface InboxInitialData {
   conversations?: InboxConversation[]
@@ -170,10 +171,10 @@ export function useInbox(options: UseInboxOptions = {}) {
     [router]
   )
 
-  // Handle sending a message
+  // Handle sending a message (texto ou mídia)
   // Auto-transfers to human mode when operator sends a manual message
   const handleSendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, media?: MediaAttachment) => {
       if (!selectedId) return
 
       // Auto-transfer to human mode if currently in bot mode
@@ -182,7 +183,17 @@ export function useInbox(options: UseInboxOptions = {}) {
         await conversationMutations.switchMode({ id: selectedId, mode: 'human' })
       }
 
-      await sendMessage({ content, message_type: 'text' })
+      if (media) {
+        await sendMessage({
+          content: media.category === 'audio' ? '' : (content || ''),
+          message_type: media.category,
+          media_url: media.url,
+          caption: content || undefined,
+          filename: media.filename,
+        })
+      } else {
+        await sendMessage({ content, message_type: 'text' })
+      }
     },
     [selectedId, sendMessage, selectedConversation?.mode, conversationMutations]
   )

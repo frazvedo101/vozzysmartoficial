@@ -290,12 +290,12 @@ export function useMessages(conversationId: string | null) {
         delivery_status: 'pending',
         created_at: new Date().toISOString(),
         // Optional fields
-        media_url: null,
+        media_url: params.media_url ?? null,
         whatsapp_message_id: null,
         ai_response_id: null,
         ai_sentiment: null,
         ai_sources: null,
-        payload: null,
+        payload: params.filename ? { filename: params.filename } : null,
       }
 
       queryClient.setQueryData(

@@ -11,8 +11,8 @@
  * - Typography-first, minimal chrome
  */
 
-import React, { memo, useMemo } from 'react'
-import { Check, CheckCheck, Clock, AlertCircle, Sparkles, ArrowRightLeft } from 'lucide-react'
+import React, { memo, useMemo, useState, useRef } from 'react'
+import { Check, CheckCheck, Clock, AlertCircle, Sparkles, ArrowRightLeft, FileText, Download, Play, Pause, Volume2, Film } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatTime } from '@/lib/date-utils'
 import {
@@ -20,6 +20,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog'
 import type { InboxMessage, DeliveryStatus, Sentiment } from '@/types'
 import { WhatsAppFormattedText } from '@/lib/whatsapp-text-formatter'
 
@@ -326,6 +330,195 @@ function parseHandoffMessage(content: string): { title: string; reason: string; 
   }
 }
 
+// =============================================================================
+// Helpers para URL de mídia inbound (Meta media ID → proxy)
+// =============================================================================
+
+function resolveMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  // Se parece ser um ID numérico do Meta (não começa com http), usar proxy
+  if (/^\d+$/.test(url.trim())) {
+    return `/api/inbox/media/${url.trim()}`
+  }
+  return url
+}
+
+// =============================================================================
+// Renderizadores de mídia
+// =============================================================================
+
+function ImageMessage({ url, caption }: { url: string; caption?: string }) {
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState(false)
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 text-[var(--ds-text-muted)] text-sm py-1">
+        <Film className="h-4 w-4" />
+        <span>Imagem indisponível</span>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div
+        className="cursor-pointer rounded-lg overflow-hidden max-w-[280px]"
+        onClick={() => setOpen(true)}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={caption || 'Imagem'}
+          className="w-full h-auto max-h-[220px] object-cover hover:opacity-90 transition-opacity"
+          onError={() => setError(true)}
+        />
+      </div>
+      {caption && (
+        <p className="text-sm mt-1.5 leading-relaxed whitespace-pre-wrap break-words">{caption}</p>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl p-2 bg-black/90 border-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={caption || 'Imagem'} className="w-full h-auto max-h-[80vh] object-contain" />
+          {caption && <p className="text-xs text-zinc-400 text-center mt-1">{caption}</p>}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function VideoMessage({ url, caption }: { url: string; caption?: string }) {
+  return (
+    <div className="max-w-[280px]">
+      <video
+        src={url}
+        controls
+        className="w-full h-auto max-h-[220px] rounded-lg bg-black/20"
+        preload="metadata"
+      />
+      {caption && (
+        <p className="text-sm mt-1.5 leading-relaxed whitespace-pre-wrap break-words">{caption}</p>
+      )}
+    </div>
+  )
+}
+
+function AudioMessage({ url }: { url: string; isVoice?: boolean }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  const toggle = () => {
+    const el = audioRef.current
+    if (!el) return
+    if (isPlaying) {
+      el.pause()
+    } else {
+      el.play()
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 min-w-[180px]">
+      {/* Play/Pause */}
+      <button
+        onClick={toggle}
+        className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0 transition-colors"
+      >
+        {isPlaying ? (
+          <Pause className="h-3.5 w-3.5 text-white" />
+        ) : (
+          <Play className="h-3.5 w-3.5 text-white ml-0.5" />
+        )}
+      </button>
+
+      {/* Onda + ícone */}
+      <div className="flex items-center gap-1 flex-1">
+        <Volume2 className="h-3.5 w-3.5 text-white/60 shrink-0" />
+        <div className="flex gap-0.5 items-center h-6">
+          {[...Array(14)].map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                'w-0.5 rounded-full',
+                isPlaying ? 'bg-white/80 animate-pulse' : 'bg-white/40'
+              )}
+              style={{ height: `${4 + Math.abs(Math.sin(i * 0.8)) * 14}px` }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <audio
+        ref={audioRef}
+        src={url}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
+        className="hidden"
+      />
+    </div>
+  )
+}
+
+function DocumentMessage({ url, filename, caption }: { url: string; filename?: string; caption?: string }) {
+  const name = filename || url.split('/').pop() || 'documento'
+  const ext = name.split('.').pop()?.toUpperCase() || 'DOC'
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      download={name}
+      className="flex items-center gap-2.5 min-w-[180px] max-w-[280px] hover:opacity-80 transition-opacity"
+    >
+      <div className="h-10 w-10 rounded-lg bg-white/10 flex flex-col items-center justify-center shrink-0">
+        <FileText className="h-4 w-4 text-white/80" />
+        <span className="text-[8px] text-white/60 mt-0.5 font-mono">{ext}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-white truncate">{name}</p>
+        {caption && <p className="text-xs text-white/60 truncate">{caption}</p>}
+      </div>
+      <Download className="h-3.5 w-3.5 text-white/50 shrink-0" />
+    </a>
+  )
+}
+
+// =============================================================================
+// Renderizador principal de conteúdo de mídia
+// =============================================================================
+
+function MediaContent({ message }: { message: InboxMessage }) {
+  const { message_type, media_url, content, payload } = message
+  const resolvedUrl = resolveMediaUrl(media_url)
+
+  if (!resolvedUrl) {
+    return (
+      <p className="text-sm text-[var(--ds-text-muted)] italic">
+        [Mídia indisponível]
+      </p>
+    )
+  }
+
+  const filename = (payload as Record<string, unknown> | null)?.filename as string | undefined
+
+  switch (message_type) {
+    case 'image':
+      return <ImageMessage url={resolvedUrl} caption={content || undefined} />
+    case 'video':
+      return <VideoMessage url={resolvedUrl} caption={content || undefined} />
+    case 'audio':
+      return <AudioMessage url={resolvedUrl} />
+    case 'document':
+      return <DocumentMessage url={resolvedUrl} filename={filename} caption={content || undefined} />
+    default:
+      return null
+  }
+}
+
 export const MessageBubble = memo(function MessageBubble({
   message,
   agentName,
@@ -344,6 +537,7 @@ export const MessageBubble = memo(function MessageBubble({
   const isInbound = direction === 'inbound'
   const isAIResponse = !isInbound && (message.ai_response_id || ai_sources)
   const handoffData = parseHandoffMessage(content)
+  const isMedia = ['image', 'audio', 'video', 'document'].includes(message.message_type || '')
 
   // Check if this is a template message
   const parsedTemplate = useMemo(() => {
@@ -446,6 +640,9 @@ export const MessageBubble = memo(function MessageBubble({
               time={time}
               deliveryStatus={delivery_status}
             />
+          ) : isMedia ? (
+            /* Mídia: imagem, vídeo, áudio, documento */
+            <MediaContent message={message} />
           ) : (
             <>
               {/* Regular message content with WhatsApp formatting */}

@@ -24,6 +24,7 @@ import type {
   ConversationMode,
   ConversationPriority,
 } from '@/types'
+import type { MediaAttachment } from './MessageInput'
 
 export interface MessagePanelProps {
   conversation: InboxConversation | null
@@ -45,7 +46,7 @@ export interface MessagePanelProps {
   onLoadMore: () => void
 
   // Actions
-  onSendMessage: (content: string) => void
+  onSendMessage: (content: string, media?: MediaAttachment) => void
   onModeToggle: () => void
   onClose: () => void
   onReopen: () => void

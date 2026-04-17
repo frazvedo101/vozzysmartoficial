@@ -30,6 +30,7 @@ import type {
   ConversationMode,
   ConversationPriority,
 } from '@/types'
+import type { MediaAttachment } from './MessageInput'
 
 export interface InboxViewProps {
   // Conversations
@@ -51,7 +52,7 @@ export interface InboxViewProps {
   onLoadMoreMessages: () => void
 
   // Message sending
-  onSendMessage: (content: string) => void
+  onSendMessage: (content: string, media?: MediaAttachment) => void
   isSending: boolean
 
   // Labels
@@ -178,12 +179,12 @@ export function InboxView({
     <TooltipProvider delayDuration={300}>
       {/* Full height container - uses parent height from PageLayoutScope */}
       <div className="h-full bg-[var(--ds-bg-base)]">
-        <ResizablePanelGroup orientation="horizontal" className="h-full">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Conversation list sidebar - subtle shadow instead of border */}
           <ResizablePanel
-            defaultSize="28%"
-            minSize="22%"
-            maxSize="38%"
+            defaultSize={28}
+            minSize={22}
+            maxSize={38}
             className="relative"
           >
             {/* Sidebar with subtle right shadow for depth */}
@@ -213,7 +214,7 @@ export function InboxView({
           <ResizableHandle className="w-px bg-transparent hover:bg-[var(--ds-border-strong)] transition-colors" />
 
           {/* Message panel - main content area */}
-          <ResizablePanel defaultSize="72%" minSize="50%">
+          <ResizablePanel defaultSize={72} minSize={50}>
             <ErrorBoundary fallback={MessagePanelFallback}>
               <MessagePanel
                 conversation={selectedConversation}

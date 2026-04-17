@@ -107,6 +107,15 @@ export async function listMessages(
   return getMessagesByConversation(conversationId, filters)
 }
 
+export interface SendMessageOptions {
+  messageType?: 'text' | 'template' | 'image' | 'audio' | 'video' | 'document'
+  templateName?: string
+  templateParams?: Record<string, string[]>
+  mediaUrl?: string
+  caption?: string
+  filename?: string
+}
+
 /**
  * Send a message to a conversation
  * This handles both persisting the message and sending via WhatsApp
@@ -114,10 +123,17 @@ export async function listMessages(
 export async function sendMessage(
   conversationId: string,
   content: string,
-  messageType: 'text' | 'template' = 'text',
-  templateName?: string,
-  templateParams?: Record<string, string[]>
+  options: SendMessageOptions = {}
 ): Promise<InboxMessage> {
+  const {
+    messageType = 'text',
+    templateName,
+    templateParams,
+    mediaUrl,
+    caption,
+    filename,
+  } = options
+
   // Get conversation to get phone number
   const conversation = await getConversationById(conversationId)
   if (!conversation) {
@@ -135,7 +151,6 @@ export async function sendMessage(
 
   try {
     if (messageType === 'template' && templateName) {
-      // Send template message
       whatsappResult = await sendWhatsAppMessage({
         to: conversation.phone,
         type: 'template',
@@ -143,8 +158,16 @@ export async function sendMessage(
         templateParams,
         credentials,
       })
+    } else if (['image', 'audio', 'video', 'document'].includes(messageType) && mediaUrl) {
+      whatsappResult = await sendWhatsAppMessage({
+        to: conversation.phone,
+        type: messageType as 'image' | 'audio' | 'video' | 'document',
+        mediaUrl,
+        caption,
+        filename,
+        credentials,
+      })
     } else {
-      // Send text message
       whatsappResult = await sendWhatsAppMessage({
         to: conversation.phone,
         type: 'text',
@@ -165,6 +188,7 @@ export async function sendMessage(
     content,
     message_type: messageType,
     whatsapp_message_id: whatsappResult.messageId,
+    ...(mediaUrl && { media_url: mediaUrl }),
   })
 
   // Update delivery status based on send result

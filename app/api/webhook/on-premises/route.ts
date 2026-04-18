@@ -191,7 +191,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
           // Supressão por opt-out
           if (errorCode && isOptOutError(errorCode) && recipientPhone) {
-            await upsertPhoneSuppression(recipientPhone, 'opt_out').catch(() => {})
+            await upsertPhoneSuppression({ phone: recipientPhone, reason: 'opt_out' }).catch(() => {})
           }
 
           // Auto-supressão por falha crítica

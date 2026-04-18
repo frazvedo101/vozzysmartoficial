@@ -104,7 +104,7 @@ function LoginForm() {
           <span className="text-3xl font-bold text-white">S</span>
         </div>
         <h1 className="text-2xl font-bold text-[var(--ds-text-primary)]">
-          {companyName || 'SmartZap'}
+          {companyName || 'V-Smart'}
         </h1>
         <p className="text-[var(--ds-text-secondary)] mt-1">Entre para continuar</p>
       </div>
@@ -165,7 +165,7 @@ function LoginForm() {
 
       {/* Footer */}
       <p className="text-center text-[var(--ds-text-muted)] text-sm mt-6">
-        SmartZap © {new Date().getFullYear()} |{' '}
+        V-Smart © {new Date().getFullYear()} |{' '}
         <a
           href="https://www.escoladeautomacao.com.br/"
           target="_blank"

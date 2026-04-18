@@ -91,7 +91,7 @@ export function WebhookAlertBanner() {
     if (active.url && !active.isSmartZap) {
       return {
         title: 'Webhook apontando para outro sistema.',
-        description: 'A URL configurada não é do SmartZap.',
+        description: 'A URL configurada não é do V-Smart.',
       };
     }
 

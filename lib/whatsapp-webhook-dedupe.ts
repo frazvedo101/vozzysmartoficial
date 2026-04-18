@@ -11,6 +11,28 @@ function getTtlSeconds(): number {
 }
 
 /**
+ * Dedupe de mensagens inbound para coexistência Cloud + On-Premises.
+ *
+ * Em modo coexistência, a mesma mensagem chega pelos dois webhooks.
+ * Usa SET NX com TTL de 24h para garantir processamento único por message.id.
+ * Fail-open: se Redis indisponível, processa normalmente.
+ */
+export async function shouldProcessInboundMessage(input: {
+  messageId: string
+}): Promise<boolean> {
+  if (!redis || !input.messageId) return true
+
+  const key = `wa:inbound:dedupe:${input.messageId}`
+  try {
+    const res = await redis.set(key, '1', { nx: true, ex: 60 * 60 * 24 })
+    return res === 'OK'
+  } catch (e) {
+    console.warn('[WebhookDedupe] Redis falhou no inbound dedupe (fail-open):', e)
+    return true
+  }
+}
+
+/**
  * Dedupe (80/20) de status do webhook ANTES de encostar no Postgres.
  *
  * - Se Redis não estiver configurado, retorna `true` (processa normalmente).

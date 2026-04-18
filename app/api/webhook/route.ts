@@ -26,7 +26,7 @@ import {
   tryParseWebhookTimestampSeconds,
 } from '@/lib/whatsapp-status-events'
 
-import { shouldProcessWhatsAppStatusEvent } from '@/lib/whatsapp-webhook-dedupe'
+import { shouldProcessWhatsAppStatusEvent, shouldProcessInboundMessage } from '@/lib/whatsapp-webhook-dedupe'
 
 
 import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
@@ -941,6 +941,14 @@ export async function POST(request: NextRequest) {
         // =====================================================================
         const messages = change.value?.messages || []
         for (const message of messages) {
+          // Deduplicação para coexistência Cloud + On-Premises: a mesma mensagem
+          // pode chegar pelos dois webhooks simultaneamente
+          const isDuplicate = !(await shouldProcessInboundMessage({ messageId: message.id || '' }))
+          if (isDuplicate) {
+            console.log(`[Webhook/Cloud] Inbound duplicado ignorado (coexistência): ${message.id}`)
+            continue
+          }
+
           const from = message.from
           const messageType = message.type
           const text = extractInboundText(message)

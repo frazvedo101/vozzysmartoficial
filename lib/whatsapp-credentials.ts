@@ -7,12 +7,21 @@ import { settingsDb } from '@/lib/supabase-db'
  * Credenciais são configuradas via UI no onboarding pós-instalação.
  */
 
+/** Modo de operação da API WhatsApp */
+export type WhatsAppApiMode = 'cloud' | 'on_premises' | 'coexistence'
+
 export interface WhatsAppCredentials {
   phoneNumberId: string
   businessAccountId: string
   accessToken: string
   displayPhoneNumber?: string
   verifiedName?: string
+  /** Modo da API: cloud (padrão), on_premises ou coexistence */
+  apiMode?: WhatsAppApiMode
+  /** URL base do servidor On-Premises (ex: https://waba.empresa.com) */
+  onpremisesBaseUrl?: string
+  /** JWT token para autenticação no servidor On-Premises */
+  onpremisesJwtToken?: string
 }
 
 /**
@@ -22,15 +31,26 @@ export interface WhatsAppCredentials {
  */
 export async function getWhatsAppCredentials(): Promise<WhatsAppCredentials | null> {
   try {
-    const settings = await settingsDb.getAll()
+    const [phoneNumberId, businessAccountId, accessToken, apiModeRaw, onpremisesBaseUrl, onpremisesJwtToken] =
+      await Promise.all([
+        settingsDb.get('phoneNumberId'),
+        settingsDb.get('businessAccountId'),
+        settingsDb.get('accessToken'),
+        settingsDb.get('api_mode'),
+        settingsDb.get('onpremises_base_url'),
+        settingsDb.get('onpremises_jwt_token'),
+      ])
 
-    const { phoneNumberId, businessAccountId, accessToken } = settings
+    const apiMode = (apiModeRaw as WhatsAppApiMode) || 'cloud'
 
     if (phoneNumberId && businessAccountId && accessToken) {
       return {
         phoneNumberId,
         businessAccountId,
         accessToken,
+        apiMode,
+        onpremisesBaseUrl: onpremisesBaseUrl || undefined,
+        onpremisesJwtToken: onpremisesJwtToken || undefined,
       }
     }
 

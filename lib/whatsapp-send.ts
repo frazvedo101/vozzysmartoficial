@@ -104,20 +104,22 @@ export async function sendWhatsAppMessage(
     payload = textPayload as unknown as Record<string, unknown>
   }
 
+  // Determina endpoint e headers conforme o modo da API
+  const { url, headers } = resolveApiTarget(credentials)
+
+  // On-Premises não aceita messaging_product no payload
+  const finalPayload = credentials.apiMode === 'on_premises'
+    ? stripMessagingProduct(payload)
+    : payload
+
   // Send to WhatsApp API
   try {
-    const response = await fetchWithTimeout(
-      `https://graph.facebook.com/v24.0/${credentials.phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        timeoutMs: 8000,
-      }
-    )
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(finalPayload),
+      timeoutMs: 8000,
+    })
 
     const data = await safeJson(response)
 
@@ -225,25 +227,22 @@ export async function sendTypingIndicator(
   }
 
   try {
-    const response = await fetchWithTimeout(
-      `https://graph.facebook.com/v24.0/${credentials.phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          status: 'read',
-          message_id: options.messageId,
-          typing_indicator: {
-            type: 'text',
-          },
-        }),
-        timeoutMs: 5000,
-      }
-    )
+    const { url, headers } = resolveApiTarget(credentials)
+    const body: Record<string, unknown> = {
+      status: 'read',
+      message_id: options.messageId,
+      typing_indicator: { type: 'text' },
+    }
+    if (credentials.apiMode !== 'on_premises') {
+      body.messaging_product = 'whatsapp'
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      timeoutMs: 5000,
+    })
 
     if (!response.ok) {
       const data = await safeJson(response)
@@ -301,27 +300,23 @@ export async function sendReaction(
   }
 
   try {
-    const response = await fetchWithTimeout(
-      `https://graph.facebook.com/v24.0/${credentials.phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: normalizedTo.replace('+', ''), // API expects without +
-          type: 'reaction',
-          reaction: {
-            message_id: options.messageId,
-            emoji: options.emoji,
-          },
-        }),
-        timeoutMs: 5000,
-      }
-    )
+    const { url, headers } = resolveApiTarget(credentials)
+    const reactionBody: Record<string, unknown> = {
+      recipient_type: 'individual',
+      to: normalizedTo.replace('+', ''),
+      type: 'reaction',
+      reaction: { message_id: options.messageId, emoji: options.emoji },
+    }
+    if (credentials.apiMode !== 'on_premises') {
+      reactionBody.messaging_product = 'whatsapp'
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(reactionBody),
+      timeoutMs: 5000,
+    })
 
     if (!response.ok) {
       const data = await safeJson(response)
@@ -423,20 +418,16 @@ export async function sendFlowMessage(
     ;(payload.interactive as Record<string, unknown>).footer = { text: footer }
   }
 
-  // Send to WhatsApp API
+  // WhatsApp Flows é exclusivo da Cloud API — não roteia para On-Premises
+  const { url, headers } = resolveApiTarget(credentials)
+
   try {
-    const response = await fetchWithTimeout(
-      `https://graph.facebook.com/v24.0/${credentials.phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${credentials.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        timeoutMs: 8000,
-      }
-    )
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeoutMs: 8000,
+    })
 
     const data = await safeJson(response)
 
@@ -462,4 +453,42 @@ export async function sendFlowMessage(
       error: error instanceof Error ? error.message : 'Failed to send flow message',
     }
   }
+}
+
+// =============================================================================
+// ROUTING HELPERS
+// =============================================================================
+
+/**
+ * Resolve endpoint e headers de autenticação conforme o modo da API.
+ * - cloud: Cloud API da Meta (padrão)
+ * - on_premises: API hospedada pelo cliente (JWT auth)
+ * - coexistence: envia via Cloud API (On-Premises recebe; Cloud envia)
+ */
+function resolveApiTarget(credentials: WhatsAppCredentials): {
+  url: string
+  headers: Record<string, string>
+} {
+  const mode = credentials.apiMode ?? 'cloud'
+
+  if (mode === 'on_premises') {
+    const base = (credentials.onpremisesBaseUrl || '').replace(/\/$/, '')
+    return {
+      url: `${base}/v1/messages`,
+      headers: { Authorization: `Bearer ${credentials.onpremisesJwtToken || ''}` },
+    }
+  }
+
+  // cloud e coexistence: usa Cloud API
+  return {
+    url: `https://graph.facebook.com/v24.0/${credentials.phoneNumberId}/messages`,
+    headers: { Authorization: `Bearer ${credentials.accessToken}` },
+  }
+}
+
+/** Remove messaging_product do payload para On-Premises API */
+function stripMessagingProduct(payload: Record<string, unknown>): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { messaging_product, ...rest } = payload
+  return rest
 }

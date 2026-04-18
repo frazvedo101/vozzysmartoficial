@@ -257,7 +257,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               const workflowClient = new WorkflowClient({ token: process.env.QSTASH_TOKEN || '' })
               const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || ''
               await workflowClient.trigger({
-                url: `${appUrl}/api/builder/workflow/${pendingConversation.workflowId}/execute`,
+                url: `${appUrl}/api/builder/workflow/${pendingConversation.workflow_id}/execute`,
                 body: { phone: normalizedFrom, message: text, conversationId: pendingConversation.id },
               })
             } catch (err) {

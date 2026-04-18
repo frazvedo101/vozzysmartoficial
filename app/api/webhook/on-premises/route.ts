@@ -230,7 +230,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             type: messageType,
             text,
             timestamp: message.timestamp,
-            mediaUrl: message.image?.url || message.video?.url || message.audio?.url || message.document?.url || null,
+            mediaUrl:
+            message.image?.url || message.image?.id ||
+            message.video?.url || message.video?.id ||
+            message.audio?.url || message.audio?.id ||
+            message.document?.url || message.document?.id ||
+            null,
             phoneNumberId: phoneNumberId || undefined,
           })
           console.log(`📥 [OnPremises] Inbox: conversation=${inboxResult.conversationId}, message=${inboxResult.messageId}`)

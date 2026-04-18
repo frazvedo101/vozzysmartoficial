@@ -965,7 +965,14 @@ export async function POST(request: NextRequest) {
               type: messageType,
               text,
               timestamp: message.timestamp,
-              mediaUrl: message.image?.url || message.video?.url || message.audio?.url || message.document?.url || null,
+              // Cloud API envia media_id (não URL) para áudio/imagem/vídeo/documento
+              // media_id numérico é convertido para URL proxy em /api/inbox/media/[id]
+              mediaUrl:
+                message.image?.url || message.image?.id ||
+                message.video?.url || message.video?.id ||
+                message.audio?.url || message.audio?.id ||
+                message.document?.url || message.document?.id ||
+                null,
               phoneNumberId: phoneNumberId || undefined,
             })
             console.log(`📥 Inbox: conversation=${inboxResult.conversationId}, message=${inboxResult.messageId}, ai=${inboxResult.triggeredAI}`)

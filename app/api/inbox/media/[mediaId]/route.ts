@@ -65,13 +65,36 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const contentType = mediaInfo.mime_type || fileRes.headers.get('content-type') || 'application/octet-stream'
     const body = await fileRes.arrayBuffer()
+    const totalSize = body.byteLength
 
-    // 3. Retornar ao cliente com cache de 1 hora
+    // 3. Suporte a Range requests — necessário para o <audio> HTML5 fazer seek/stream
+    const rangeHeader = request.headers.get('range')
+    if (rangeHeader) {
+      const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+      if (match) {
+        const start = parseInt(match[1], 10)
+        const end = match[2] ? parseInt(match[2], 10) : totalSize - 1
+        const chunkSize = end - start + 1
+
+        return new NextResponse(body.slice(start, end + 1), {
+          status: 206,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Range': `bytes ${start}-${end}/${totalSize}`,
+            'Content-Length': String(chunkSize),
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'private, max-age=3600',
+          },
+        })
+      }
+    }
+
     return new NextResponse(body, {
       headers: {
         'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
         'Cache-Control': 'private, max-age=3600',
-        'Content-Length': String(body.byteLength),
+        'Content-Length': String(totalSize),
       },
     })
   } catch (error) {

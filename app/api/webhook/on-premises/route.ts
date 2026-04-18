@@ -242,7 +242,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (text && isOptOutKeyword(text)) {
           const normalizedFrom = normalizePhoneNumber(from)
           if (normalizedFrom) {
-            await upsertPhoneSuppression(normalizedFrom, 'opt_out').catch(() => {})
+            await upsertPhoneSuppression({ phone: normalizedFrom, reason: 'opt_out' }).catch(() => {})
             console.log(`[Webhook/OnPremises] Opt-out por keyword: ${normalizedFrom}`)
           }
           continue

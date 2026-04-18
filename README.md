@@ -1,4 +1,4 @@
-# SmartZap
+# V-Smart
 
 > Automação de WhatsApp com IA integrada. Dispare campanhas, converse com clientes e deixe agentes de IA atenderem por você.
 
@@ -20,9 +20,9 @@
 
 ## Sobre
 
-**SmartZap** é uma plataforma completa de automação de WhatsApp que ajuda você a se comunicar com clientes de forma mais inteligente e produtiva.
+**V-Smart** é uma plataforma completa de automação de WhatsApp que ajuda você a se comunicar com clientes de forma mais inteligente e produtiva.
 
-### Por que escolher SmartZap?
+### Por que escolher V-Smart?
 
 - **Instalação em minutos**: Deploy na Vercel + wizard que configura tudo
 - **Campanhas em massa**: Dispare mensagens para milhares de contatos com templates aprovados
@@ -83,7 +83,7 @@
 >
 > **Método recomendado**: Fork → Vercel → Wizard
 
-Este guia vai te levar do zero até ter o SmartZap funcionando.
+Este guia vai te levar do zero até ter o V-Smart funcionando.
 
 ### O que você vai fazer
 
@@ -120,12 +120,12 @@ Antes de começar, você precisa de contas nestes serviços:
 
 ### Passo 1: Fork no GitHub
 
-1. Acesse o repositório do SmartZap
+1. Acesse o repositório do V-Smart
 2. Clique no botão **Fork** (canto superior direito)
 3. Escolha sua conta pessoal ou organização
 4. Aguarde o fork ser criado
 
-> **Pronto quando**: Você ver o repositório `smartzap` na sua conta do GitHub
+> **Pronto quando**: Você ver o repositório `V-Smart` na sua conta do GitHub
 
 ---
 
@@ -134,12 +134,12 @@ Antes de começar, você precisa de contas nestes serviços:
 1. Acesse [vercel.com](https://vercel.com/) e faça login
 2. Clique em **Add New Project**
 3. Conecte sua conta do GitHub (se ainda não conectou)
-4. Selecione **smartzap** (seu fork)
+4. Selecione **V-Smart** (seu fork)
 5. Clique em **Deploy**
 
 > **Aguarde**: O deploy leva cerca de 2-3 minutos
 
-6. Quando terminar, copie a URL do seu projeto (ex: `https://smartzap-abc123.vercel.app`)
+6. Quando terminar, copie a URL do seu projeto (ex: `https://V-Smart-abc123.vercel.app`)
 
 > **Pronto quando**: Você tiver uma URL funcionando
 
@@ -160,13 +160,13 @@ Antes de começar, você precisa de contas nestes serviços:
    **Etapa 2 - Vercel:**
    - Vá em [vercel.com/account/tokens](https://vercel.com/account/tokens)
    - Clique em **Create Token**
-   - Dê um nome (ex: "SmartZap Installer")
+   - Dê um nome (ex: "V-Smart Installer")
    - Cole o token no wizard e selecione o projeto
 
    **Etapa 3 - Supabase:**
    - Vá em [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
    - Clique em **Generate new token**
-   - Nome: **smartzap**
+   - Nome: **V-Smart**
    - Cole o token no wizard
    - 💡 O projeto será criado automaticamente!
 
@@ -178,7 +178,7 @@ Antes de começar, você precisa de contas nestes serviços:
 
    **Etapa 5 - Redis:**
    - No [console.upstash.com/redis](https://console.upstash.com/redis), clique em **Create Database**
-   - Nome: **smartzap** • Região: **São Paulo** (ou mais próxima)
+   - Nome: **V-Smart** • Região: **São Paulo** (ou mais próxima)
    - Após criar, vá na aba **REST API**
    - Copie **UPSTASH_REDIS_REST_URL** e **UPSTASH_REDIS_REST_TOKEN**
    - Cole ambos no wizard
@@ -252,7 +252,7 @@ Acesse o sistema e faça login com o **email** e **senha** que você configurou 
 
 ### Navegação Principal
 
-O SmartZap tem estas áreas principais:
+O V-Smart tem estas áreas principais:
 
 - **Campanhas**: Criar e gerenciar disparos em massa
 - **Contatos**: Lista de contatos e importação
@@ -323,7 +323,7 @@ Depois:
 
 ### Upstash (QStash + Redis)
 
-O SmartZap usa dois serviços do Upstash:
+O V-Smart usa dois serviços do Upstash:
 
 **QStash** - Fila para processar campanhas em lote:
 - Vá em [upstash.com](https://upstash.com/) → QStash
@@ -415,11 +415,11 @@ O SmartZap usa dois serviços do Upstash:
 
 ### Como resetar minha senha?
 
-A senha do SmartZap é a variável `MASTER_PASSWORD` no seu projeto Vercel.
+A senha do V-Smart é a variável `MASTER_PASSWORD` no seu projeto Vercel.
 
 **Passo a passo:**
 
-1. Acesse [vercel.com](https://vercel.com) e abra seu projeto SmartZap
+1. Acesse [vercel.com](https://vercel.com) e abra seu projeto V-Smart
 2. Vá em **Settings → Environment Variables**
 3. Encontre `MASTER_PASSWORD`, clique nos 3 pontinhos → **Edit**
 4. Apague o valor atual e digite sua nova senha em texto simples (ex: `MinhaSenha123`)
@@ -464,8 +464,8 @@ A senha do SmartZap é a variável `MASTER_PASSWORD` no seu projeto Vercel.
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/SEU-USUARIO/smartzap.git
-cd smartzap
+git clone https://github.com/SEU-USUARIO/V-Smart.git
+cd V-Smart
 
 # 2. Instale dependências
 npm install
@@ -491,7 +491,7 @@ npm run test:e2e         # Testes E2E
 ### Estrutura do Projeto
 
 ```
-smartzap/
+V-Smart/
 ├── app/                 # Rotas Next.js (App Router)
 │   ├── (auth)/          # Páginas de auth (login, install)
 │   ├── (dashboard)/     # Páginas do dashboard
@@ -508,6 +508,6 @@ Para mais detalhes técnicos, veja:
 
 ---
 
-**[⬆ Voltar ao topo](#smartzap)**
+**[⬆ Voltar ao topo](#V-Smart)**
 
 Feito com ❤️ para comunicação mais inteligente

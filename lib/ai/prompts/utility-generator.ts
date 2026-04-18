@@ -23,7 +23,7 @@ SUBSTITUA conteúdo potencialmente promocional por variáveis!
 - Datas e horários: {{1}} (quarta-feira), {{2}} (19h)
 - Quantidades: {{3}} (23 vagas, 10 unidades)
 - Formas de pagamento: {{4}} (boleto, parcelado)
-- Nome do produto/curso: {{1}} (Escola de Automação)
+- Nome do produto/curso: {{1}} (V-Smart)
 - Qualquer coisa que possa parecer oferta/urgência
 
 ### EXEMPLOS BONS:
@@ -64,7 +64,7 @@ garanta já, aproveite agora, compre agora
 Se identificar "Boleto", "Vagas", "Curso X":
 1. MANTENHA a frase, mas TROQUE a palavra "proibida" por {{N}}.
 2. Ex: "Pague seu boleto" -> "Visualize seu {{2}}".
-3. Ex: "Acesso à Escola" -> "Acesso ao {{3}}".
+3. Ex: "Acesso ao V-Smart" -> "Acesso ao {{3}}".
 4. O objetivo é que a Meta aprove a ESTRUTURA. O conteúdo real vai na variável depois.
 
 ## 📌 HEADERS - REGRAS

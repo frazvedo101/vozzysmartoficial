@@ -1,6 +1,6 @@
 ---
-project_name: 'smartzap'
-user_name: 'Thales'
+project_name: 'v-smart'
+user_name: 'Fernando Rodrigues'
 date: '2026-02-08'
 sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules']
 status: 'complete'

@@ -314,7 +314,7 @@ export async function processChatAgent(
   const {
     findRelevantContent,
     hasIndexedContent,
-    buildEmbeddingConfigFromAgent,
+    buildEmbeddingConfigFromAgentWithKey,
     buildRerankConfigFromAgent,
   } = await import('@/lib/ai/rag-store')
 
@@ -475,7 +475,7 @@ export async function processChatAgent(
           const ragStartTime = Date.now()
 
           // Build configs
-          const embeddingConfig = buildEmbeddingConfigFromAgent(agent)
+          const embeddingConfig = await buildEmbeddingConfigFromAgentWithKey(agent)
           const rerankConfig = await buildRerankConfigFromAgent(agent)
 
           // Search

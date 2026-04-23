@@ -15,18 +15,10 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import {
   findRelevantContent,
-  buildEmbeddingConfigFromAgent,
+  buildEmbeddingConfigFromAgentWithKey,
   hasIndexedContent,
 } from '@/lib/ai/rag-store'
-import type { AIAgent, EmbeddingProvider } from '@/types'
-
-// Mapeamento de provider para chave de API na tabela settings
-const EMBEDDING_API_KEY_MAP: Record<EmbeddingProvider, { settingKey: string; envVar: string }> = {
-  google: { settingKey: 'google_api_key', envVar: 'GOOGLE_GENERATIVE_AI_API_KEY' },
-  openai: { settingKey: 'openai_api_key', envVar: 'OPENAI_API_KEY' },
-  voyage: { settingKey: 'voyage_api_key', envVar: 'VOYAGE_API_KEY' },
-  cohere: { settingKey: 'cohere_api_key', envVar: 'COHERE_API_KEY' },
-}
+import type { AIAgent } from '@/types'
 
 // =============================================================================
 // Response Schema (dynamic based on handoff_enabled - same as chat-agent)
@@ -195,66 +187,50 @@ export async function POST(request: NextRequest, context: RouteContext) {
     let searchKnowledgeBaseTool: any = undefined
 
     if (hasKnowledgeBase) {
-      // Get embedding API key for the configured provider
-      const embeddingProvider = (agent.embedding_provider || 'google') as EmbeddingProvider
-      const config = EMBEDDING_API_KEY_MAP[embeddingProvider]
+      searchKnowledgeBaseTool = tool({
+        description: 'Busca informações na base de conhecimento do agente. Use para responder perguntas que precisam de dados específicos.',
+        inputSchema: z.object({
+          query: z.string().describe('A pergunta ou termos de busca para encontrar informações relevantes'),
+        }),
+        execute: async ({ query }) => {
+          console.log(`[ai-agents/test] LLM requested knowledge search: "${query.slice(0, 100)}..."`)
+          searchPerformed = true
+          const ragStartTime = Date.now()
 
-      const { data: embeddingKeySetting } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', config.settingKey)
-        .maybeSingle()
+          const embeddingConfig = await buildEmbeddingConfigFromAgentWithKey(agent as AIAgent)
 
-      const embeddingApiKey = embeddingKeySetting?.value || process.env[config.envVar]
+          const relevantContent = await findRelevantContent({
+            agentId: id,
+            query,
+            embeddingConfig,
+            topK: agent.rag_max_results || 5,
+            threshold: agent.rag_similarity_threshold || 0.5,
+          })
 
-      if (embeddingApiKey) {
-        searchKnowledgeBaseTool = tool({
-          description: 'Busca informações na base de conhecimento do agente. Use para responder perguntas que precisam de dados específicos.',
-          inputSchema: z.object({
-            query: z.string().describe('A pergunta ou termos de busca para encontrar informações relevantes'),
-          }),
-          execute: async ({ query }) => {
-            console.log(`[ai-agents/test] LLM requested knowledge search: "${query.slice(0, 100)}..."`)
-            searchPerformed = true
-            const ragStartTime = Date.now()
+          console.log(`[ai-agents/test] RAG search completed in ${Date.now() - ragStartTime}ms, found ${relevantContent.length} chunks`)
 
-            const embeddingConfig = buildEmbeddingConfigFromAgent(agent as AIAgent)
+          if (relevantContent.length === 0) {
+            return { found: false, message: 'Nenhuma informação relevante encontrada na base de conhecimento.' }
+          }
 
-            const relevantContent = await findRelevantContent({
-              agentId: id,
-              query,
-              embeddingConfig,
-              topK: agent.rag_max_results || 5,
-              threshold: agent.rag_similarity_threshold || 0.5,
-            })
+          // Track sources for response
+          ragSources = relevantContent.map((r, i) => ({
+            title: `Trecho ${i + 1} (${(r.similarity * 100).toFixed(0)}% relevante)`,
+            content: r.content.slice(0, 200) + (r.content.length > 200 ? '...' : ''),
+          }))
 
-            console.log(`[ai-agents/test] RAG search completed in ${Date.now() - ragStartTime}ms, found ${relevantContent.length} chunks`)
+          // Return formatted content for LLM to use
+          const contextText = relevantContent
+            .map((r, i) => `[${i + 1}] ${r.content}`)
+            .join('\n\n')
 
-            if (relevantContent.length === 0) {
-              return { found: false, message: 'Nenhuma informação relevante encontrada na base de conhecimento.' }
-            }
-
-            // Track sources for response
-            ragSources = relevantContent.map((r, i) => ({
-              title: `Trecho ${i + 1} (${(r.similarity * 100).toFixed(0)}% relevante)`,
-              content: r.content.slice(0, 200) + (r.content.length > 200 ? '...' : ''),
-            }))
-
-            // Return formatted content for LLM to use
-            const contextText = relevantContent
-              .map((r, i) => `[${i + 1}] ${r.content}`)
-              .join('\n\n')
-
-            return {
-              found: true,
-              content: contextText,
-              sourceCount: relevantContent.length,
-            }
-          },
-        })
-      } else {
-        console.log(`[ai-agents/test] Embedding API key not configured for ${embeddingProvider}`)
-      }
+          return {
+            found: true,
+            content: contextText,
+            sourceCount: relevantContent.length,
+          }
+        },
+      })
     }
 
     // Build tools object

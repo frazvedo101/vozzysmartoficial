@@ -275,6 +275,31 @@ export function buildEmbeddingConfigFromAgent(agent: AIAgent): EmbeddingConfig {
   }
 }
 
+const EMBEDDING_SETTING_KEY: Partial<Record<EmbeddingConfig['provider'], string>> = {
+  google: 'google_api_key',
+  openai: 'openai_api_key',
+}
+
+/**
+ * Constrói EmbeddingConfig com apiKey buscada do banco (para uso sem AI Gateway)
+ */
+export async function buildEmbeddingConfigFromAgentWithKey(agent: AIAgent): Promise<EmbeddingConfig> {
+  const base = buildEmbeddingConfigFromAgent(agent)
+  const supabase = getSupabaseAdmin()
+  if (!supabase) return base
+
+  const settingKey = EMBEDDING_SETTING_KEY[base.provider]
+  if (!settingKey) return base
+
+  const { data } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', settingKey)
+    .maybeSingle()
+
+  return { ...base, apiKey: data?.value || undefined }
+}
+
 /**
  * Constrói RerankConfig a partir de um AIAgent (se habilitado)
  */

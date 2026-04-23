@@ -33,23 +33,11 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import {
   findRelevantContent,
-  buildEmbeddingConfigFromAgent,
+  buildEmbeddingConfigFromAgentWithKey,
   buildRerankConfigFromAgent,
   hasIndexedContent,
 } from '@/lib/ai/rag-store'
-import type { AIAgent, EmbeddingProvider } from '@/types'
-
-// =============================================================================
-// Types & Schemas
-// =============================================================================
-
-// Mapeamento de provider para chave de API
-const EMBEDDING_API_KEY_MAP: Record<EmbeddingProvider, { settingKey: string; envVar: string }> = {
-  google: { settingKey: 'google_api_key', envVar: 'GOOGLE_GENERATIVE_AI_API_KEY' },
-  openai: { settingKey: 'openai_api_key', envVar: 'OPENAI_API_KEY' },
-  voyage: { settingKey: 'voyage_api_key', envVar: 'VOYAGE_API_KEY' },
-  cohere: { settingKey: 'cohere_api_key', envVar: 'COHERE_API_KEY' },
-}
+import type { AIAgent } from '@/types'
 
 // Schema para mensagem individual
 const messageSchema = z.object({
@@ -287,56 +275,43 @@ export async function POST(request: NextRequest, context: RouteContext) {
     let searchKnowledgeBaseTool: any = undefined
 
     if (hasKnowledgeBase) {
-      const embeddingProvider = (agent.embedding_provider || 'google') as EmbeddingProvider
-      const config = EMBEDDING_API_KEY_MAP[embeddingProvider]
+      searchKnowledgeBaseTool = tool({
+        description: 'Busca informações na base de conhecimento. Use para responder perguntas específicas.',
+        inputSchema: z.object({
+          query: z.string().describe('Pergunta ou termos de busca'),
+        }),
+        execute: async ({ query }) => {
+          console.log(`[ai-agents/chat] Knowledge search: "${query.slice(0, 80)}..."`)
+          searchPerformed = true
 
-      const { data: embeddingKeySetting } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', config.settingKey)
-        .maybeSingle()
+          const embeddingConfig = await buildEmbeddingConfigFromAgentWithKey(agent as AIAgent)
+          const rerankConfig = await buildRerankConfigFromAgent(agent as AIAgent)
 
-      const embeddingApiKey = embeddingKeySetting?.value || process.env[config.envVar]
+          const relevantContent = await findRelevantContent({
+            agentId,
+            query,
+            embeddingConfig,
+            rerankConfig,
+            topK: agent.rag_max_results || 5,
+            threshold: agent.rag_similarity_threshold || 0.5,
+          })
 
-      if (embeddingApiKey) {
-        searchKnowledgeBaseTool = tool({
-          description: 'Busca informações na base de conhecimento. Use para responder perguntas específicas.',
-          inputSchema: z.object({
-            query: z.string().describe('Pergunta ou termos de busca'),
-          }),
-          execute: async ({ query }) => {
-            console.log(`[ai-agents/chat] Knowledge search: "${query.slice(0, 80)}..."`)
-            searchPerformed = true
+          if (relevantContent.length === 0) {
+            return { found: false, message: 'Nenhuma informação encontrada.' }
+          }
 
-            const embeddingConfig = buildEmbeddingConfigFromAgent(agent as AIAgent)
-            const rerankConfig = await buildRerankConfigFromAgent(agent as AIAgent)
+          ragSources = relevantContent.map((r, i) => ({
+            title: `Fonte ${i + 1}`,
+            content: r.content.slice(0, 200) + '...',
+          }))
 
-            const relevantContent = await findRelevantContent({
-              agentId,
-              query,
-              embeddingConfig,
-              rerankConfig,
-              topK: agent.rag_max_results || 5,
-              threshold: agent.rag_similarity_threshold || 0.5,
-            })
+          const contextText = relevantContent
+            .map((r, i) => `[${i + 1}] ${r.content}`)
+            .join('\n\n')
 
-            if (relevantContent.length === 0) {
-              return { found: false, message: 'Nenhuma informação encontrada.' }
-            }
-
-            ragSources = relevantContent.map((r, i) => ({
-              title: `Fonte ${i + 1}`,
-              content: r.content.slice(0, 200) + '...',
-            }))
-
-            const contextText = relevantContent
-              .map((r, i) => `[${i + 1}] ${r.content}`)
-              .join('\n\n')
-
-            return { found: true, content: contextText, sourceCount: relevantContent.length }
-          },
-        })
-      }
+          return { found: true, content: contextText, sourceCount: relevantContent.length }
+        },
+      })
     }
 
     // Build tools

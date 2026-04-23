@@ -93,28 +93,51 @@ const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1'
 // =============================================================================
 
 /**
- * Cria o modelo de embedding via AI Gateway (OIDC).
- * Suporta Google e OpenAI. Voyage e Cohere não são suportados.
+ * Cria o modelo de embedding.
+ * Prioridade: AI Gateway (chave explícita) → chamada direta com apiKey do config → env var
+ * NOTA: VERCEL_OIDC_TOKEN é injetado automaticamente em todos os deploys Vercel,
+ * mas não é necessariamente autorizado para o AI Gateway. Só usamos AI_GATEWAY_API_KEY
+ * (configurada explicitamente) para evitar falhas de autenticação silenciosas.
  */
 async function getEmbeddingModel(config: EmbeddingConfig) {
-  if (config.provider === 'google' || config.provider === 'openai') {
-    const { createOpenAI } = await import('@ai-sdk/openai')
+  const gatewayToken = process.env.AI_GATEWAY_API_KEY
 
-    const gatewayModelId = `${config.provider}/${config.model}`
-
-    const openai = createOpenAI({
-      apiKey: process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY || 'dummy',
-      baseURL: AI_GATEWAY_BASE_URL,
-    })
-
-    console.log(`[embeddings] Gateway model: ${gatewayModelId}`)
-
-    return openai.embedding(gatewayModelId)
+  if (config.provider === 'google') {
+    if (gatewayToken) {
+      const { createOpenAI } = await import('@ai-sdk/openai')
+      const openai = createOpenAI({ apiKey: gatewayToken, baseURL: AI_GATEWAY_BASE_URL })
+      console.log(`[embeddings] Gateway model: google/${config.model}`)
+      return openai.embedding(`google/${config.model}`)
+    }
+    // Sem gateway: chama Google diretamente com a chave configurada nas settings ou env
+    const apiKey = config.apiKey
+      || process.env.GOOGLE_GENERATIVE_AI_API_KEY
+      || process.env.GEMINI_API_KEY
+    if (!apiKey) throw new Error('Google API key não configurada para embeddings. Configure em Configurações → IA.')
+    const { createGoogleGenerativeAI } = await import('@ai-sdk/google')
+    const google = createGoogleGenerativeAI({ apiKey })
+    console.log(`[embeddings] Direct Google model: ${config.model}`)
+    return google.textEmbeddingModel(config.model)
   }
 
-  // Voyage e Cohere não são suportados pelo AI Gateway — usar Google ou OpenAI
+  if (config.provider === 'openai') {
+    if (gatewayToken) {
+      const { createOpenAI } = await import('@ai-sdk/openai')
+      const openai = createOpenAI({ apiKey: gatewayToken, baseURL: AI_GATEWAY_BASE_URL })
+      console.log(`[embeddings] Gateway model: openai/${config.model}`)
+      return openai.embedding(`openai/${config.model}`)
+    }
+    // Sem gateway: chama OpenAI diretamente
+    const apiKey = config.apiKey || process.env.OPENAI_API_KEY
+    if (!apiKey) throw new Error('OpenAI API key não configurada para embeddings. Configure em Configurações → IA.')
+    const { createOpenAI } = await import('@ai-sdk/openai')
+    const openai = createOpenAI({ apiKey })
+    console.log(`[embeddings] Direct OpenAI model: ${config.model}`)
+    return openai.embedding(config.model)
+  }
+
   throw new Error(
-    `Provider "${config.provider}" não suportado via AI Gateway. Use Google ou OpenAI para embeddings.`
+    `Provider "${config.provider}" não suportado. Use Google ou OpenAI para embeddings.`
   )
 }
 

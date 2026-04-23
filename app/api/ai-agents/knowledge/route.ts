@@ -199,6 +199,7 @@ export async function POST(request: NextRequest) {
     // Index file in pgvector (async but we wait for it)
     let indexingStatus: 'completed' | 'failed' = 'failed'
     let chunksCount = 0
+    let indexingError: string | undefined
 
     try {
       // Process with OCR if needed (PDFs, images, Office docs → Markdown)
@@ -215,8 +216,8 @@ export async function POST(request: NextRequest) {
 
       console.log(`[knowledge] Indexing ${name} in pgvector for agent ${agent_id}`)
 
-      // Build embedding config from agent settings
-      const embeddingConfig = buildEmbeddingConfigFromAgent(agent as AIAgent)
+      // Build embedding config from agent settings (inclui apiKey para fallback sem gateway)
+      const embeddingConfig = { ...buildEmbeddingConfigFromAgent(agent as AIAgent), apiKey: apiKey ?? undefined }
 
       // Index document (chunk → embed → store)
       const result = await indexDocument({
@@ -235,9 +236,11 @@ export async function POST(request: NextRequest) {
         chunksCount = result.chunksIndexed
         console.log(`[knowledge] Indexed ${chunksCount} chunks for ${name}`)
       } else {
+        indexingError = result.error
         console.error(`[knowledge] Indexing failed: ${result.error}`)
       }
     } catch (indexError) {
+      indexingError = indexError instanceof Error ? indexError.message : String(indexError)
       console.error('[knowledge] Indexing error:', indexError)
       // Continue - file is saved, just not indexed
     }
@@ -266,6 +269,7 @@ export async function POST(request: NextRequest) {
       file: updatedFile || file,
       indexing_status: indexingStatus,
       chunks_indexed: chunksCount,
+      ...(indexingError ? { indexing_error: indexingError } : {}),
     }, { status: 201 })
   } catch (error) {
     console.error('[knowledge] POST Error:', error)

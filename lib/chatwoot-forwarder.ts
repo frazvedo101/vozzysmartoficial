@@ -21,16 +21,30 @@ async function getChatwootWebhookUrl(): Promise<string | null> {
   }
 }
 
-export async function forwardToChatwoot(payload: unknown): Promise<void> {
+export interface ForwardToChatwootOptions {
+  /** Raw body string exatamente como recebido da Meta — necessário para assinatura válida */
+  rawBody: string
+  /** Valor do header x-hub-signature-256 original da Meta */
+  signature?: string | null
+}
+
+export async function forwardToChatwoot(options: ForwardToChatwootOptions): Promise<void> {
   const url = await getChatwootWebhookUrl()
   if (!url) return
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+
+  // Repassa a assinatura original da Meta para que o Chatwoot possa verificá-la
+  if (options.signature) {
+    headers['x-hub-signature-256'] = options.signature
+  }
 
   try {
     await fetchWithTimeout(url, {
       method: 'POST',
       timeoutMs: 3000,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers,
+      body: options.rawBody,
     })
   } catch (err) {
     console.error('[Chatwoot Forward] erro ao encaminhar payload', err)

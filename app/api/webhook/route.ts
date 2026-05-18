@@ -1015,11 +1015,7 @@ export async function POST(request: NextRequest) {
             console.warn('[Webhook] Failed to persist to inbox:', inboxError)
           }
 
-          // Chatwoot: encaminha rawBody + assinatura original para que o Chatwoot valide a assinatura Meta
-          void forwardToChatwoot({
-            rawBody,
-            signature: request.headers.get('x-hub-signature-256'),
-          }).catch(err => console.error('[Chatwoot Forward]', err))
+          // (forward ao Chatwoot ocorre após o loop — ver chamada awaited abaixo)
 
           // =================================================================
           // Workflow Builder (MVP): resume pending conversation if any
@@ -1641,6 +1637,18 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error processing webhook:', error)
+  }
+
+  // Chatwoot: forward awaited para garantir entrega antes do retorno em serverless.
+  // void dentro do loop causa race condition — a função retorna antes do fetch completar.
+  const hasInboundMessages = (body?.entry || []).some((e: any) =>
+    (e?.changes || []).some((c: any) => Array.isArray(c?.value?.messages) && c.value.messages.length > 0)
+  )
+  if (hasInboundMessages) {
+    await forwardToChatwoot({
+      rawBody,
+      signature: request.headers.get('x-hub-signature-256'),
+    }).catch(err => console.error('[Chatwoot Forward]', err))
   }
 
   // Always return 200 to acknowledge receipt (Meta requirement)

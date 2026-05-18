@@ -285,6 +285,9 @@ export const campaignDb = {
             cancelledAt: (data as any).cancelled_at ?? null,
             flowId: (data as any).flow_id ?? null,
             flowName: (data as any).flow_name ?? null,
+            chatwootSync: (data as any).chatwoot_sync ?? false,
+            chatwootLabel: (data as any).chatwoot_label ?? null,
+            chatwootAgentId: (data as any).chatwoot_agent_id ?? null,
         }
     },
 

@@ -998,6 +998,11 @@ export async function POST(request: NextRequest) {
       accessToken,
       // Config de throttle passada do dispatch para evitar dependência de DB no QStash
       throttleConfig,
+      // Integração Chatwoot: sincronizar conversa ao enviar
+      chatwootSync: (campaignRow as any).chatwoot_sync ?? false,
+      chatwootLabel: (campaignRow as any).chatwoot_label ?? null,
+      chatwootAgentId: (campaignRow as any).chatwoot_agent_id ?? null,
+      campaignName: (campaignRow as any).name ?? templateName,
     }
 
     // BYPASS apenas em localhost REAL (dev local) - nunca em Vercel (preview ou prod)

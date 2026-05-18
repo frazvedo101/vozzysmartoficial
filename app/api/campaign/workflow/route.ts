@@ -6,6 +6,7 @@ import { getUserFriendlyMessageForMetaError, normalizeMetaErrorTextForStorage } 
 import { precheckContactForTemplate } from '@/lib/whatsapp/template-contract'
 import { buildMetaTemplatePayload, renderTemplatePreviewText } from '@/lib/whatsapp/template-payload'
 import { syncCampaignTemplateToInbox } from '@/lib/inbox/inbox-service'
+import { syncCampaignDeliveryToChatwoot } from '@/lib/chatwoot-sync'
 import { emitWorkflowTrace, maskPhone, timePhase } from '@/lib/workflow-trace'
 import { createRateLimiter } from '@/lib/rate-limiter'
 import { recordStableBatch, recordThroughputExceeded, getAdaptiveThrottleConfigWithSource, getAdaptiveThrottleState } from '@/lib/whatsapp-adaptive-throttle'
@@ -302,6 +303,11 @@ interface CampaignWorkflowInput {
     minIncreaseGapSec: number
     sendFloorDelayMs: number
   } | null
+  // Integração Chatwoot: sincronizar conversa ao enviar
+  chatwootSync?: boolean
+  chatwootLabel?: string | null
+  chatwootAgentId?: number | null
+  campaignName?: string
 }
 
 async function claimPendingForSend(
@@ -511,7 +517,7 @@ async function updateContactStatus(
 // Each step is a separate HTTP request, bypasses Vercel 10s timeout
 const workflowHandler = serve<CampaignWorkflowInput>(
   async (context) => {
-    const { campaignId, templateName, contacts, templateVariables, phoneNumberId, accessToken, templateSnapshot, traceId: incomingTraceId, throttleConfig: payloadThrottleConfig } = context.requestPayload
+    const { campaignId, templateName, contacts, templateVariables, phoneNumberId, accessToken, templateSnapshot, traceId: incomingTraceId, throttleConfig: payloadThrottleConfig, chatwootSync, chatwootLabel, chatwootAgentId, campaignName } = context.requestPayload
 
     const traceId = (incomingTraceId && String(incomingTraceId).trim().length > 0)
       ? String(incomingTraceId).trim()
@@ -1582,6 +1588,23 @@ const workflowHandler = serve<CampaignWorkflowInput>(
               }).catch((err) => {
                 console.warn(`[workflow] inbox sync failed for ${contact.phone}:`, err)
               })
+
+              // Chatwoot: cria conversa + nota privada + etiqueta + agente (fire-and-forget)
+              if (chatwootSync) {
+                syncCampaignDeliveryToChatwoot({
+                  phone: precheck.normalizedPhone,
+                  name: contact.name ?? null,
+                  campaignName: campaignName || templateName,
+                  chatwootLabel: chatwootLabel ?? null,
+                  chatwootAgentId: chatwootAgentId ?? null,
+                  templateSnapshot: activeTemplateForSync as any,
+                  templateVariables: {
+                    body: valuesForSend?.body?.map((v) => v.text) ?? [],
+                  },
+                }).catch((err) => {
+                  console.warn(`[workflow] chatwoot sync failed for ${contact.phone}:`, err)
+                })
+              }
 
               // Métrica operacional: quando foi o último "sent" (envio/dispatch), sem depender de delivery.
               lastSentAtInBatch = new Date().toISOString()

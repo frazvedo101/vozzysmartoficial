@@ -42,8 +42,7 @@ import {
   handleDeliveryStatus,
 } from '@/lib/inbox/inbox-webhook'
 
-// Chatwoot: espelho de campanhas + forward de mensagens entrantes + mídia via API
-import { syncCampaignDeliveryToChatwoot } from '@/lib/chatwoot-sync'
+// Chatwoot: forward de mensagens entrantes + mídia via API
 import { forwardToChatwoot } from '@/lib/chatwoot-forwarder'
 import { syncInboundMediaToChatwoot } from '@/lib/chatwoot-inbound-sync'
 
@@ -586,9 +585,8 @@ export async function POST(request: NextRequest) {
     ? allKeywordWorkflows.filter((w) => w.workflowId !== defaultWorkflowId)
     : allKeywordWorkflows
 
-  // Filas para sync ao Chatwoot (processadas em paralelo após o loop principal)
+  // Fila para mídia entrante (processada em paralelo após o loop principal)
   const chatwootMediaQueue: Array<{ from: string; name: string | null; message: any }> = []
-  const chatwootCampaignSyncQueue: Array<Parameters<typeof syncCampaignDeliveryToChatwoot>[0]> = []
 
   try {
     const entries = body.entry || []
@@ -910,38 +908,6 @@ export async function POST(request: NextRequest) {
             } catch (inboxError) {
               // Best-effort: don't fail webhook if inbox update fails
               console.warn('[Webhook] Failed to update inbox delivery status:', inboxError)
-            }
-
-            // Chatwoot: espelha entrega confirmada na conversa do contato
-            if (result.reason === 'applied' && status === 'delivered' && result.campaignId) {
-              try {
-                const { data: campaignData } = await supabase
-                  .from('campaigns')
-                  .select('name, chatwoot_sync, chatwoot_label, chatwoot_agent_id, template_snapshot, template_variables')
-                  .eq('id', result.campaignId)
-                  .single()
-
-                if (campaignData?.chatwoot_sync) {
-                  const { data: contactData } = await supabase
-                    .from('campaign_contacts')
-                    .select('name')
-                    .eq('id', result.campaignContactId)
-                    .single()
-
-                  // Enfileira para execução awaited após o loop (evita race condition serverless)
-                  chatwootCampaignSyncQueue.push({
-                    phone: result.phone ?? '',
-                    name: contactData?.name ?? null,
-                    campaignName: campaignData.name,
-                    chatwootLabel: campaignData.chatwoot_label ?? null,
-                    chatwootAgentId: campaignData.chatwoot_agent_id ?? null,
-                    templateSnapshot: campaignData.template_snapshot ?? null,
-                    templateVariables: campaignData.template_variables ?? null,
-                  })
-                }
-              } catch (e) {
-                console.error('[Chatwoot Sync] falha ao buscar campanha:', e)
-              }
             }
 
             if (eventId) {
@@ -1685,13 +1651,6 @@ export async function POST(request: NextRequest) {
           )
         }
       }
-    }
-
-    for (const params of chatwootCampaignSyncQueue) {
-      promises.push(
-        syncCampaignDeliveryToChatwoot(params)
-          .catch(err => console.error('[Chatwoot Campaign Sync]', err))
-      )
     }
 
     if (promises.length > 0) {

@@ -122,7 +122,7 @@ export async function postIncomingMessage(
       if (content) formData.append('content', content)
       formData.append('message_type', 'incoming')
       formData.append('private', 'false')
-      const blob = new Blob([attachment.buffer], { type: attachment.mimeType })
+      const blob = new Blob([new Uint8Array(attachment.buffer)], { type: attachment.mimeType })
       formData.append('attachments[]', blob, attachment.fileName)
 
       // Não passar Content-Type — o fetch define automaticamente com o boundary do FormData

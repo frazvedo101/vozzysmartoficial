@@ -90,11 +90,20 @@ export async function findOrCreateConversation(config: ChatwootConfig, contactId
   }
 }
 
-export async function postOutgoingMessage(config: ChatwootConfig, conversationId: number, content: string): Promise<void> {
+export async function postOutgoingMessage(
+  config: ChatwootConfig,
+  conversationId: number,
+  content: string,
+  options?: { private?: boolean }
+): Promise<void> {
   try {
     await chatwootFetch(config, `/conversations/${conversationId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, message_type: 'outgoing', private: false }),
+      body: JSON.stringify({
+        content,
+        message_type: 'outgoing',
+        private: options?.private ?? false,
+      }),
     })
   } catch (err) {
     console.error('[Chatwoot] postOutgoingMessage error', err)

@@ -586,8 +586,9 @@ export async function POST(request: NextRequest) {
     ? allKeywordWorkflows.filter((w) => w.workflowId !== defaultWorkflowId)
     : allKeywordWorkflows
 
-  // Fila de mensagens de mídia para sync via API ao Chatwoot (processadas após o loop principal)
+  // Filas para sync ao Chatwoot (processadas em paralelo após o loop principal)
   const chatwootMediaQueue: Array<{ from: string; name: string | null; message: any }> = []
+  const chatwootCampaignSyncQueue: Array<Parameters<typeof syncCampaignDeliveryToChatwoot>[0]> = []
 
   try {
     const entries = body.entry || []
@@ -927,14 +928,15 @@ export async function POST(request: NextRequest) {
                     .eq('id', result.campaignContactId)
                     .single()
 
-                  void syncCampaignDeliveryToChatwoot({
+                  // Enfileira para execução awaited após o loop (evita race condition serverless)
+                  chatwootCampaignSyncQueue.push({
                     phone: result.phone ?? '',
                     name: contactData?.name ?? null,
                     campaignName: campaignData.name,
                     chatwootLabel: campaignData.chatwoot_label ?? null,
                     templateSnapshot: campaignData.template_snapshot ?? null,
                     templateVariables: campaignData.template_variables ?? null,
-                  }).catch(err => console.error('[Chatwoot Sync Error]', err))
+                  })
                 }
               } catch (e) {
                 console.error('[Chatwoot Sync] falha ao buscar campanha:', e)
@@ -1682,6 +1684,13 @@ export async function POST(request: NextRequest) {
           )
         }
       }
+    }
+
+    for (const params of chatwootCampaignSyncQueue) {
+      promises.push(
+        syncCampaignDeliveryToChatwoot(params)
+          .catch(err => console.error('[Chatwoot Campaign Sync]', err))
+      )
     }
 
     if (promises.length > 0) {

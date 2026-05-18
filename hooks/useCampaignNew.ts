@@ -84,6 +84,8 @@ export const useCampaignNewController = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [chatwootSync, setChatwootSync] = useState(false)
   const [chatwootLabel, setChatwootLabel] = useState('')
+  const [chatwootLabels, setChatwootLabels] = useState<string[]>([])
+  const [chatwootLabelsLoading, setChatwootLabelsLoading] = useState(false)
   const userTimeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [templateVars, setTemplateVars] = useState<{ header: TemplateVar[]; body: TemplateVar[] }>({
@@ -139,6 +141,17 @@ export const useCampaignNewController = () => {
     if (selectedCountries.includes('BR')) return
     setSelectedStates([])
   }, [selectedCountries, selectedStates])
+
+  // Busca etiquetas disponíveis no Chatwoot quando o toggle é ativado
+  useEffect(() => {
+    if (!chatwootSync) return
+    setChatwootLabelsLoading(true)
+    fetch('/api/settings/chatwoot/labels')
+      .then(r => r.json())
+      .then(data => setChatwootLabels(Array.isArray(data?.labels) ? data.labels : []))
+      .catch(() => setChatwootLabels([]))
+      .finally(() => setChatwootLabelsLoading(false))
+  }, [chatwootSync])
 
   const templatesQuery = useQuery({
     queryKey: ['templates'],
@@ -1582,6 +1595,8 @@ export const useCampaignNewController = () => {
     setChatwootSync,
     chatwootLabel,
     setChatwootLabel,
+    chatwootLabels,
+    chatwootLabelsLoading,
 
     // Launch
     isLaunching,

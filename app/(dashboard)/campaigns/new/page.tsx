@@ -1425,13 +1425,31 @@ export default function CampaignsNewRealPage() {
               {ctrl.chatwootSync && (
                 <div className="mt-4 space-y-1">
                   <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Etiqueta no Chatwoot (opcional)</label>
-                  <input
-                    type="text"
-                    placeholder="ex: campanha-maio"
-                    value={ctrl.chatwootLabel}
-                    onChange={(e) => ctrl.setChatwootLabel(e.target.value)}
-                    className="w-full rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm text-[var(--ds-text-primary)] outline-none transition focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/10"
-                  />
+                  {ctrl.chatwootLabelsLoading ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2">
+                      <span className="size-3 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                      <span className="text-sm text-[var(--ds-text-muted)]">Carregando etiquetas…</span>
+                    </div>
+                  ) : ctrl.chatwootLabels.length > 0 ? (
+                    <select
+                      value={ctrl.chatwootLabel}
+                      onChange={(e) => ctrl.setChatwootLabel(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm text-[var(--ds-text-primary)] outline-none transition focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/10"
+                    >
+                      <option value="">— Nenhuma etiqueta —</option>
+                      {ctrl.chatwootLabels.map((label) => (
+                        <option key={label} value={label}>{label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="ex: campanha-maio"
+                      value={ctrl.chatwootLabel}
+                      onChange={(e) => ctrl.setChatwootLabel(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm text-[var(--ds-text-primary)] outline-none transition focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/10"
+                    />
+                  )}
                   <p className="text-xs text-[var(--ds-text-muted)]">Etiqueta aplicada ao contato e à conversa no Chatwoot ao confirmar entrega.</p>
                 </div>
               )}
